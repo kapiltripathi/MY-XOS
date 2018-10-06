@@ -1,0 +1,99 @@
+alias physicalSP S0;                                 
+physicalSP= ([PTBR + 2*(SP/512)]*512) + (SP%512);   //physical address of sp
+alias sys_callno S1;
+sys_callno = [physicalSP-1];//systemCallno
+alias argument S2;
+argument = [physicalSP-3];//filename
+ 
+            if(sys_callno==2) then //system call no is 2 ie OPEN
+                   alias j S4;
+                   alias count S3;
+                   count=0;
+                   alias flag S5;
+                    
+                   while(count<64) do  // check within FAT for entry with same specified filename
+                         if([FAT + count*8]==argument) then
+                              flag=0;
+                                j=0;    
+                               while(j<128) do //if found increment count of Systemoptable  correspo value 
+                                          if([FILE_TABLE + j +0]==count) then//check against FAT index
+                                               [FILE_TABLE +j +1]=[FILE_TABLE + j+1]+1;//incrementing
+                                                flag=1;
+                                              break;
+                                           endif;
+                                     j=j+2;
+                               endwhile;
+                                 if(flag==0) then // entry with this FAT index isn't present in SYSoptable
+                                         j=0;
+                                      flag=0;
+                                      while(j<128) do       //creating a new entry for this index
+                                          if([FILE_TABLE + j +0]==-1) then
+                                                       [FILE_TABLE + j +0]=count;//index stored
+                                                        [FILE_TABLE + j +1]=1;//count made as 1
+                                                       flag=1;
+                                                       break;
+                                          endif;
+                                          j=j+2;
+                                    endwhile;
+                                          if(flag==0) then //no free  space in the table then fail
+                                                [physicalSP-2]=-1;
+                                                 ireturn;
+                                          endif;
+                                   endif;
+                           alias currentPID S6;
+                           currentPID= ( PTBR - 1024)/8;//calculate current pid value
+                           alias k S5;
+                                 k=0;
+                             while(k<=16) do
+                                if([READY_LIST + currentPID*32 +15 +k]==-1) then//if free space in process table
+                                    [READY_LIST + currentPID*32 +15 +k]=j/2; //system wide open file table index
+                                    [READY_LIST + currentPID*32 + 15 +k+1]=0; //lseek position set to 0
+                                  [physicalSP-2]=k/2;// index of the per process  open file table fileDEscriptor
+                                  ireturn;
+                                endif;
+                               k=k+2;
+                             endwhile;
+
+                          [physicalSP-2]=-1;
+                            ireturn; 
+                      endif;
+                  count=count+1;
+            endwhile;
+                [physicalSP-2]=-1;
+                 ireturn;
+    endif;
+
+                
+        
+          if(sys_callno==3) then
+             
+                if(argument>=0 && argument<=7) then //checking if argument is valid
+                          alias currentPID S3;
+                          currentPID = ( PTBR - 1024)/8; //finding the current PId
+                          if([READY_LIST + 32*currentPID + 15 + argument*2]==-1) then//this file isn't open 
+                                [physicalSP-2]=-1; //hence return with -1
+                                ireturn;
+                          endif;
+
+                          alias i S4;
+                           i=[READY_LIST + 32*currentPID +15 +argument];//SYSTEM WIDE OPEN FILE TABLE INDEX stored
+                          if([FILE_TABLE + i*2 +1 ]==1) then //checking if this file has OPEN count is 1
+                             [FILE_TABLE + i*2 +0]= -1;//then store as invalid entry 
+                             [FILE_TABLE + i*2 + 1]= 0;//make OPEN count as 0
+                          endif;
+                          if([FILE_TABLE + i*2 + 1]>1) then //if OPEN COUNT>1 
+                               [FILE_TABLE + i*2 +1]=[FILE_TABLE + i*2 + 1]-1;//decrement count
+                          endif;
+                          [READY_LIST + 32*currentPID +15 + argument*2]=-1;// remove and store as invalid 
+                          [READY_LIST + 32*currentPID + 15 + argument*2 + 1]=-1; //lseek also set to -1
+                          [physicalSP-2]=0;//chalgaya
+                          ireturn;
+               endif;
+                     [physicalSP-2]=-1;
+                     ireturn;
+         endif;
+
+                          
+
+
+

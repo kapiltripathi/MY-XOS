@@ -1,0 +1,154 @@
+alias Cause S0;
+alias VPagenum S1;
+alias Ip_addr S2;
+
+Cause = EFR % 10;		
+VPagenum = (EFR / 10) % 100;     
+Ip_addr = (EFR/1000);
+
+print(VPagenum);	
+
+if (Cause==1) then
+print("ILLEGAL INSTRUCTION");
+inline "JMP 11776";
+endif;
+
+if (Cause==2) then
+print("ILLEGAL MEMORY ACCESS");
+inline "JMP 11776";
+endif;
+
+if (Cause==3) then
+print("ARITHMETIC EXCEPTION");
+inline "JMP 11776";
+endif;
+
+if (Cause==4) then
+print("ILLEGAL OPERANDS");
+inline "JMP 11776";
+endif;
+
+if ([PTBR + VPagenum*2]==-1) then
+print("INVALID ADDRESS");
+inline "JMP 11776";
+endif;
+
+alias page S3;
+page=25;
+
+while (page<64) do
+
+if ([MEM_LIST + page]==0) then
+[MEM_LIST + page]=1;
+break;
+endif;
+
+page=page+1;
+endwhile;
+
+alias currentPID S4;
+currentPID=(PTBR-1024)/8;
+
+alias currentPCB S5;
+currentPCB=READY_LIST + 32*currentPID;
+
+alias i S6;
+
+if (page==64) then
+
+i=(currentPID+1)%32;
+
+alias victimpage S10;
+victimpage=-1;
+
+alias j S7;
+j=0;
+
+while (i!=currentPID) do
+
+alias valid S8;
+alias foundpage S9;
+j=0;
+
+while (j<6) do
+
+foundpage=[1024 + i*8 + j];
+valid=[1024 + i*8 + j + 1];
+
+if (foundpage==-1||[MEM_LIST + foundpage]>1) then
+j=j+2;
+continue;
+endif;
+
+if (valid=="01"||valid=="00") then
+victimpage=foundpage;
+break;
+endif;
+
+if (valid=="10") then
+[1024 + i*8 + j + 1]="00";
+endif;
+
+if (valid=="11") then
+[1024 + i*8 + j + 1]="01";
+endif;
+
+j=j+2;
+endwhile;
+
+if (victimpage!=-1) then
+break;
+endif;
+
+i=(i+1)%32;
+endwhile;
+
+alias swapblock S8;
+swapblock=448;
+
+while (swapblock < 512) do
+
+if ([DISK_LIST + swapblock]==0) then
+break;
+endif;
+
+swapblock=swapblock+1;
+endwhile;
+
+if (swapblock==512) then
+print("MEMORY OVERFLOW");
+inline "JMP 11776";
+endif;
+
+
+store(victimpage,swapblock);
+[DISK_LIST + swapblock]=1;
+[1024 + i*8 + j]=swapblock;
+[1024 + i*8 + j + 1]="00";
+
+
+page=victimpage;
+endif;
+
+
+alias phypagenumber S9;
+phypagenumber=[PTBR + VPagenum*2];
+
+if (phypagenumber>=21&&phypagenumber<=447) then
+load(page,phypagenumber);
+endif;
+
+if (phypagenumber>=448) then
+load(page,phypagenumber);
+[DISK_LIST + phypagenumber]=[DISK_LIST + phypagenumber]-1;
+endif;
+
+[PTBR + VPagenum*2]=page;
+[PTBR + VPagenum*2 + 1]="11";
+
+SP=SP+1;
+alias physicalSP S10;
+physicalSP=([PTBR + 2* (SP/512)]*512) + (SP%512);
+
+[physicalSP]=Ip_addr;
+ireturn;

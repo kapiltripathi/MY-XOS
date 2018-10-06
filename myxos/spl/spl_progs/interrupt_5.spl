@@ -1,0 +1,115 @@
+alias physicalSP S2;
+physicalSP= ([PTBR + 2*(SP/512) ]*512 ) + (SP % 512);
+
+
+
+      alias childPID S0;
+      childPID = 0;
+      while(childPID<32) do
+     
+         if([READY_LIST + 32*childPID + 1]==0) then
+               break;
+
+         endif;
+         childPID=childPID+1;
+         endwhile;
+    
+         if(childPID==32) then
+              [physicalSP-2]=-1;
+               ireturn;
+         endif;
+              
+            
+           [READY_LIST + 32*childPID + 0] = childPID;
+           
+         alias i S1;
+               i=0;
+         alias count S3;
+               count=0;
+               while(i<8) do
+               if([PTBR + i]!=-1) then
+                   count=count+1;
+               endif;
+              i=i+2;
+                endwhile;
+         i=29;
+         alias count1 S4;
+               count1=0;
+        while(i<64) do
+           if([MEM_LIST + i]==0) then    
+              count1=count1+1;
+           endif;
+           i=i+1;
+        endwhile;
+        if(count1<count) then
+         [physicalSP-2]=-1;
+         ireturn;
+         endif;
+                     
+        alias childPTBR S3;
+              childPTBR = 1024 + childPID*8;
+              i=0;
+        while(i<=3) do
+              if([PTBR + 2*i]!=-1) then
+                        count1=29;
+                        while(count1<64) do
+                             if([MEM_LIST + count1]==0) then
+                                 [MEM_LIST + count1]=1;
+                                 [childPTBR + i*2]=count1;
+                                 [childPTBR + i*2 + 1]=[PTBR + 2*i +1];
+                                break;
+                             endif;
+                             
+                             count1=count1+1;
+                        endwhile;
+        alias copier S5;
+              copier=0;
+              while(copier<512) do
+              [count1*512 +copier]=[[PTBR + 2*i]*512 +copier];
+                copier=copier+1;
+              endwhile;
+             endif;
+            if([PTBR + 2*i]==-1) then
+                [childPTBR + 2*i]=[PTBR + 2*i];
+                [childPTBR + 2*i + 1]=[PTBR + 2*i + 1];
+            endif;
+       i=i+1;
+        endwhile;
+       [READY_LIST + 32*childPID + 5] = childPTBR;
+       [READY_LIST + 32*childPID + 4] = [physicalSP];
+       [READY_LIST + 32*childPID + 3] = SP-1;
+       [READY_LIST + 32*childPID + 2] = BP;
+       [READY_LIST + 32*childPID + 6] = PTLR;
+       [READY_LIST + 32*childPID + 7] = R0;
+       [READY_LIST + 32*childPID + 8] = R1;
+       [READY_LIST + 32*childPID + 9] = R2;
+       [READY_LIST + 32*childPID + 10] = R3;
+       [READY_LIST + 32*childPID + 11] = R4;
+       [READY_LIST + 32*childPID + 12] = R5;
+       [READY_LIST + 32*childPID + 13] = R6;
+       [READY_LIST + 32*childPID + 14] = R7;
+       i=15;
+       alias parentPID S7;
+       parentPID = (PTBR-1024)/8;
+       [READY_LIST + 32*childPID + 31] = parentPID;
+       alias parentPIDnew S9;
+       parentPIDnew = parentPID*32;
+       while(i<=30) do
+             [READY_LIST + 32*childPID + i + 0] = [READY_LIST + parentPIDnew + i +0];
+              if([READY_LIST +parentPIDnew + i +0]!=-1) then
+              alias indexSys S10;
+                    indexSys = [READY_LIST +parentPIDnew + i +0];
+ [FILE_TABLE + 2*indexSys  + 1] = [FILE_TABLE + 2* indexSys +1] +1;
+               endif;
+             [READY_LIST + 32*childPID + i + 1] = [READY_LIST +parentPIDnew + i +1];
+             i=i+2;
+             endwhile; 
+      
+        [READY_LIST + 32*childPID + 1]=1;
+        [physicalSP-2]=childPID  ;
+        
+             
+   alias physicalSP2 S8;
+  physicalSP2 = ([childPTBR + 2*((SP-1)/512)] * 512) + ((SP-1)%512);
+  [physicalSP2-1]=-2;
+   ireturn;

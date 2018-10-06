@@ -1,0 +1,125 @@
+alias physicalSP S2;
+physicalSP= ([PTBR + 2*(SP/512) ]*512 ) + (SP % 512);
+
+
+
+      alias childPID S0;
+      childPID = 0;
+      while(childPID<32) do
+     
+         if([READY_LIST + 32*childPID + 1]==0) then
+               break;
+
+         endif;
+         childPID=childPID+1;
+         endwhile;
+    
+         if(childPID==32) then
+              [physicalSP-2]=-1;
+               ireturn;
+         endif;
+              
+            
+           [READY_LIST + 32*childPID + 0] = childPID;
+       //yahan se    
+         alias i S1;
+               i=0;
+         alias flag S3;
+               flag=0;
+         while(i<64) do
+               if([MEM_LIST + i]==0) then
+                      flag=1;
+                      break;
+               endif;
+         i=i+1;
+         endwhile;
+                   if(flag==0) then
+                      [physicalSP-2]=-1;
+                      ireturn;
+                   endif;
+                   
+                  [MEM_LIST + i] = 1;
+         flag = [PTBR + 3*2 +0];
+         alias j S4;
+               j=0;
+         while(j<512) do
+              [i*512 + j] = [flag * 512 +j];
+              j=j+1;
+         endwhile;
+        
+                      alias childPTBR S3;
+              childPTBR = 1024 + childPID*8;
+              [childPTBR + 3*2 ] = i;
+              [childPTBR + 3*2 + 1] = "01";
+              i=0;
+        while(i<=2) do
+             // if([PTBR + 2*i]!=-1) then
+                 [childPTBR + 2*i] = [PTBR + 2*i];
+                 [childPTBR + 2*i + 1] = [PTBR + 2*i + 1];
+                 if(([PTBR + 2*i + 1]=="00" || [PTBR + 2*i + 1] == "10") && [PTBR + 2*i]>=448) then
+                                                alias blockno S5;
+                                                      blockno = [PTBR + 2*i];
+                                                [DISK_LIST + blockno ] = [DISK_LIST + blockno ] +1;
+                                                 store (6,20);
+                   endif;
+                 if([PTBR + 2*i + 1] == "01" || [PTBR + 2*i + 1] == "11") then
+                                                alias blockno1 S5;
+                                                      blockno1 = [PTBR + 2*i];
+                                                [MEM_LIST + blockno1 ] = [MEM_LIST + blockno1] + 1;
+                 endif;
+        i=i+1;
+        endwhile;
+
+
+                                
+                                     
+                    
+                        
+        
+
+//yahan tak
+
+
+
+
+
+
+
+
+       [READY_LIST + 32*childPID + 5] = childPTBR;
+       [READY_LIST + 32*childPID + 4] = [physicalSP];
+       [READY_LIST + 32*childPID + 3] = SP-1;
+       [READY_LIST + 32*childPID + 2] = BP;
+       [READY_LIST + 32*childPID + 6] = PTLR;
+       [READY_LIST + 32*childPID + 7] = R0;
+       [READY_LIST + 32*childPID + 8] = R1;
+       [READY_LIST + 32*childPID + 9] = R2;
+       [READY_LIST + 32*childPID + 10] = R3;
+       [READY_LIST + 32*childPID + 11] = R4;
+       [READY_LIST + 32*childPID + 12] = R5;
+       [READY_LIST + 32*childPID + 13] = R6;
+       [READY_LIST + 32*childPID + 14] = R7;
+       i=15;
+       alias parentPID S7;
+       parentPID = (PTBR-1024)/8;
+       [READY_LIST + 32*childPID + 31] = parentPID;
+       alias parentPIDnew S9;
+       parentPIDnew = parentPID*32;
+       while(i<=30) do
+             [READY_LIST + 32*childPID + i + 0] = [READY_LIST + parentPIDnew + i +0];
+              if([READY_LIST +parentPIDnew + i +0]!=-1) then
+              alias indexSys S10;
+                    indexSys = [READY_LIST +parentPIDnew + i +0];
+ [FILE_TABLE + 2*indexSys  + 1] = [FILE_TABLE + 2* indexSys +1] +1;
+               endif;
+             [READY_LIST + 32*childPID + i + 1] = [READY_LIST +parentPIDnew + i +1];
+             i=i+2;
+             endwhile; 
+      
+        [READY_LIST + 32*childPID + 1]=1;
+        [physicalSP-2]=childPID  ;
+        
+             
+   alias physicalSP2 S8;
+  physicalSP2 = ([childPTBR + 2*((SP-1)/512)] * 512) + ((SP-1)%512);
+  [physicalSP2-1]=-2;

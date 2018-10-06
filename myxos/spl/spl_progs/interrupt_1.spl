@@ -1,0 +1,177 @@
+alias physicalSP S0;
+physicalSP= ([PTBR + 2*(SP/512) ]*512 )+ (SP % 512);//physical address of stack top
+alias system_callno S1;
+
+system_callno=[physicalSP - 1]; //below stack top is system call no
+
+alias arg S5;
+ 
+arg=[physicalSP-3];// first argument or the filename
+
+   if(system_callno==1) then  // callno for the Create system call
+    
+    
+   alias i S4;
+   // alias flag0 S8;
+   // flag0=0;
+   //i=0;
+   alias j S2;
+    //while(i<64) do
+     //if([FAT + (i*8) +2]==-1) then
+       //  flag0=1;
+         
+        // break;
+     //endif;
+     //i=i+1;
+     //endwhile;
+         
+   //if(flag0==0) then 
+   //[physicalSP-2]=-1;
+   //ireturn;
+   //endif;
+   
+
+   i=0;
+   
+
+ while(i<64) do   //checking if filename already exists in fat
+      
+     if([FAT + (i*8)] == arg) then
+         [physicalSP-2]=0; //success put 0 in return value
+          ireturn;
+          endif;
+      i=i+1;
+ endwhile;
+
+
+   
+   
+   
+    
+   alias basicBlock S6;
+  
+   j=24;
+   while(j<448) do  // check for empty block in disk free list
+       
+         if([DISK_LIST +j]==0) then //each entry of df list is one word and empty is 0
+              
+             basicBlock=j; 
+             i=0;
+            while(i<64) do   // check for empty space in file allocation table 
+       
+                   if([FAT + i*8 +2]==-1) then //no basic block
+                       [FAT + i*8 ]=arg;//filename from argument
+                       [FAT + i*8 +1]=0;// size initially as zero
+                       [FAT + i*8 +2]=basicBlock;// basic block set as the one found empty above
+                       load (1,basicBlock); //load basic block in scratchpad
+   
+                            alias k S3;
+                                  k=0;
+                                  while(k<256) do
+      
+                                     [SCRATCHPAD + k]=-1;//entries of the basic black initially are empty 
+                                     k=k+1;
+                                  endwhile;
+           
+                       store (1,basicBlock); //restore to disk the changed block
+                       [DISK_LIST +j]=1; //disk free list is updated
+                       store (5,19);// restore fat to disk
+                       store (6,20);// restore df list to disk 
+                       [physicalSP - 2] = 0; // success store 0 at sp-2
+                       ireturn;
+        
+                   endif;
+                   i=i+1;
+               endwhile;
+     endif;
+     j=j+1;
+   endwhile;
+
+
+   [physicalSP - 2] =-1; // no block found empty or fat is not empty hence failure
+    ireturn;
+
+
+endif;
+
+
+       
+
+     if(system_callno==4) then   //if the system call is delete
+         alias count S3;
+           count = 0;//fat index
+                 while(count<64) do //search the fat table for filename
+                       
+                      if([FAT + count*8]==arg) then
+                          alias index S4;
+                                index=0;
+                                 while(index<128) do //whether the file is opened by any process SYS_wide open table
+                                              if([FILE_TABLE + index ]==count) then //checking against the FAT index
+                                                  [physicalSP-2]=-1; //failure
+                                                  ireturn;
+                                              endif;
+                                      index=index+2;
+                                 endwhile;
+                           alias basicBlock S4;
+                           basicBlock=[FAT + count*8 + 2];// store the no of basic block
+                           load (1,basicBlock); //load in scratch pad
+                           alias scratch_i S2; // index to keep track of the data blocks residing in basic block
+                           scratch_i=0;
+                                while(scratch_i<256) do
+                                           alias yo S6;
+	                                  yo=[SCRATCHPAD +scratch_i];//data block no is stored
+                                          if(yo!=-1) then // no data block
+                                          load (1,yo);//load data block in scratchpad
+                                          alias data S7;
+                                          data=0;
+                                          while(data<512) do //make each entry as"" empty string
+                                                  [SCRATCHPAD + data]="";
+                                          data=data+1;
+                                          endwhile;
+                                          store (1,yo); //store data block back in disk
+                                          endif;
+                                          scratch_i=scratch_i+1;//next data block in basic block
+                                          load (1,basicBlock); // again load the basic block for next data block
+                               endwhile;
+                                   load (1,basicBlock);
+                                   alias po S6;
+                                     po=0;
+                                   while(po<256) do // after clearin all data blocks clear basic block
+                                        [SCRATCHPAD + po]="";
+                                   po=po+1;
+                                   endwhile;
+                                   
+                                   store (1,basicBlock);//restore 
+                                    [DISK_LIST +basicBlock]=0; // df list entry is made as 0 denoting free space
+                                    [FAT + count*8 +0]=-1;// erase fat entry ie remove filename
+                                    [FAT + count*8 +1]=0;//filesize=0
+                                    [FAT + count*8 +2]=-1;//file basic block as -1
+                                     store (5,19);//restore fat
+                                     store (6,20);//restore disk free list
+                                    [physicalSP -2]=0; // chal gaya bhaiya
+                                    ireturn;
+       
+                   endif;
+              count=count+1;
+          endwhile;
+       [physicalSP-2]=-1;// ama yaar phat gayi
+         ireturn;
+       endif;
+
+    
+   
+    
+      
+      
+    
+     
+       
+      
+     
+            
+          
+         
+
+          
+      
+

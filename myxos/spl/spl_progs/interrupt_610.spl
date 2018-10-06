@@ -1,0 +1,108 @@
+alias physicalSP S0;
+physicalSP = ([PTBR + 2* (SP/512)]*512) + (SP % 512);
+alias filename S1;
+filename = [physicalSP-3];
+alias syscallno  S8;
+      syscallno = [physicalSP-1];
+
+     alias i S2;
+           i=0;
+   if( syscallno == 9) then
+           while(i<64) do
+            if([FAT + i*8 + 0]==filename) then
+//yahan se
+
+
+                 alias j S3;
+                       j=0;
+                       while(j<=2) do
+                             if([PTBR + 2*j ]!=-1) then
+                                alias pageno S4;
+                                    pageno = [PTBR + 2*j];
+                                    if([PTBR + 2*j + 1] == "01" || [PTBR + 2*j + 1] == "11") then
+                                       [MEM_LIST + pageno] = [MEM_LIST + pageno ] - 1;
+                                       if ([MEM_LIST + pageno]<0) then
+                                             [MEM_LIST + pageno]=0;
+                                                        endif;
+
+                                    endif;
+                           if(([PTBR + 2*j + 1] =="10" || [PTBR + 2*j + 1]=="00") && (pageno>=448)) then
+                                       [DISK_LIST + pageno ] = [DISK_LIST + pageno ]-1;
+                                        store (6,20);
+                            endif;
+                              endif;
+                             j=j+1;
+                        endwhile;
+                      alias basicBlock S3;
+                          basicBlock = [FAT + i*8 + 2];
+                            load (1,basicBlock);
+                            alias j S4;
+                                  j=0;
+                           
+                                  while( j<3) do
+                                       if([SCRATCHPAD + j]!=-1) then
+                                          [PTBR + j*2] = [SCRATCHPAD + j];
+                                          [PTBR + j*2 + 1] = "00";
+  
+                                          endif;
+                                       if([SCRATCHPAD + j]==-1) then
+                                          [PTBR + j*2 ] = -1;
+                                          [PTBR + j*2 + 1] = "00";
+                                       
+                                        endif;
+                                      j=j+1;
+                                  endwhile;
+//yahan tak       
+                 alias newPID S13;
+                       newPID = (PTBR - 1024)/8;
+                       newPID = newPID*32;
+                       j=0;
+                       while( j<8) do
+                            if([READY_LIST + newPID + 15 + 2*j]!=-1) then 
+                               alias sysIndex S10;
+                                     sysIndex = [READY_LIST + newPID + 15 + 2*j];
+                                   
+                                       [FILE_TABLE + sysIndex*2 + 1] = [FILE_TABLE + sysIndex*2 + 1] - 1;
+                                     if( [FILE_TABLE + sysIndex*2 + 1]==0) then
+                                       [FILE_TABLE + sysIndex*2 + 1] = 0;
+                                       [FILE_TABLE + sysIndex*2 + 0] =-1; 
+                                    endif;
+                               [READY_LIST + newPID + 15 + 2*j]=-1;
+                               [READY_LIST + newPID + 15 + 2*j + 1]=-1;
+                               
+                          endif;
+                        j=j+1;
+                       endwhile;        
+                   SP = 3*512;
+                   physicalSP = ([PTBR + (SP/512)*2]*512) + (SP % 512);
+                   [physicalSP]=0;
+                 ireturn;
+              
+            endif;
+          i=i+1;
+         endwhile;
+        [physicalSP-2]=-1;
+        ireturn;
+   endif;
+   
+
+   if( syscallno == 11) then
+               i=(PTBR-1024)/8;
+               [physicalSP-2]=i;
+               ireturn;
+   endif;
+  
+   if( syscallno == 12) then
+              i = (PTBR-1024)/8;
+              [physicalSP-2] = [READY_LIST + 32*i +31];
+              ireturn;
+   endif;
+
+                                    
+                       
+          
+                               
+               
+                       
+                                 
+                              

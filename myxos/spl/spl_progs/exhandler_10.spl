@@ -1,0 +1,133 @@
+alias cause S0;
+alias vpagenum S1;
+alias ip_addr S2;
+      cause = EFR % 10;
+      vpagenum = (EFR/10) % 100;
+      ip_addr = (EFR/1000);
+      if(cause==1) then
+         print("ILLEGAL INSTR");
+      inline " JMP 11776";
+      endif;
+      if(cause==2) then
+         print ("ILL MEMAces");
+      inline "JMP 11776";
+      endif;
+      if(cause==3) then
+         print ("ARITHM Exe");
+      inline "JMP 11776";
+      endif;
+      if(cause==4) then
+         print("ILL Operand");
+      inline "JMP 11776";
+      endif;
+  
+      if(cause == 0) then 
+         if([PTBR + 2*vpagenum ]==-1) then
+            inline "JMP 11776";
+         else 
+             alias i S3;
+                   i=25;
+                   alias pid S5;
+                   pid = (PTBR-1024)/8;
+                   alias j S4;
+                   j=vpagenum;
+              while (i<64) do
+                         if([MEM_LIST + i]==0) then
+                            [MEM_LIST + i]=1;
+                            break;
+                         endif;
+              i=i+1;
+              endwhile;
+              if( i==64) then
+                 
+            alias pid S5;
+                  pid = (PTBR-1024)/8;
+            alias j S4;
+                  j=vpagenum;
+            alias flag S6;
+                  flag=0;
+               while(flag==0) do
+                  while(j<3) do
+                  alias validbit S7;
+                  alias pageno S8;
+                        pageno = [1024 + 8*pid + j*2];
+                        validbit = [1024 + 8*pid + j*2 + 1];
+                        if(validbit=="10" || validbit == "11") then
+                                if(validbit=="10" )then
+                                       [1024 + 8*pid + j*2 + 1]="00";
+                                      
+                                endif;
+                                if(validbit =="11") then
+                                        [1024 + 8*pid + j*2 + 1]="01";
+                                endif;
+                       endif;
+                       if((validbit == "00" ||validbit == "01" ) && (pageno!=-1)) then
+                                  if([MEM_LIST + pageno]<=1) then
+                                        flag=1;
+                                     
+                                         break;
+                                   endif;
+                       endif;                     
+               j=j+1;
+               endwhile;
+             if(flag==1) then
+                break;
+             endif;
+             j=0;
+             pid = (pid+1)%32;
+             endwhile;
+
+               flag=448;
+             while(flag<=511) do
+                 if([DISK_LIST + flag]==0) then
+                     break;
+                 endif;
+                 flag=flag+1;
+             endwhile;
+            if(flag==512) then
+            inline "JMP 11776";
+            endif;
+            store([1024 + pid*8 + j*2],flag);
+            [DISK_LIST + flag]=1;
+            store(6,20);
+            [1024 + 8*pid + 2*j ] = flag;
+            [1024 + 8*pid + 2*j + 1] = "00";
+         endif;
+         if( i==64) then
+         i=[1024 + pid*8 + j*2];
+         else 
+         i=i;
+         endif;
+              
+             
+              alias physicalpageno S9;
+                  physicalpageno = [PTBR + vpagenum*2];
+      
+            if(physicalpageno>=21 && physicalpageno<448) then
+              load (i,physicalpageno);
+            endif;
+            if(physicalpageno>=448 && physicalpageno<=511) then
+              load (i,physicalpageno);
+              [DISK_LIST + physicalpageno]=[DISK_LIST + physicalpageno]-1;
+              store (6,20);
+            endif;
+    
+              [PTBR + vpagenum*2]=i;
+              [PTBR + vpagenum*2 + 1]="01";
+              SP = SP+1;
+            alias physicalSP2 S10;
+                  physicalSP2 = ([PTBR + (SP/512)*2]*512) + (SP%512);
+                  [physicalSP2]=ip_addr;
+            ireturn;
+   endif;
+endif;
+
+
+
+
+                       
+
+            
+                                                                      
+                                
+         

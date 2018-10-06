@@ -1,0 +1,149 @@
+alias physicalSPOfParent S0;
+physicalSPOfParent=([PTBR + 2* (SP/512)]*512) + (SP%512);
+
+alias sysCallNo S1;
+sysCallNo=[physicalSPOfParent-1];
+
+if (sysCallNo==8) then
+
+alias PIDOFCHILD S2;
+
+PIDOFCHILD=0;
+
+while(PIDOFCHILD <= 31) do
+
+if ([READY_LIST + PIDOFCHILD*32 + 1]==0) then
+break;
+endif;
+
+PIDOFCHILD=PIDOFCHILD+1;
+
+endwhile;
+
+if (PIDOFCHILD==32) then
+[physicalSPOfParent - 2]=-1;
+ireturn;
+endif;
+
+[READY_LIST + PIDOFCHILD*32]=PIDOFCHILD;
+
+
+alias stackpage S3;
+stackpage=25;
+
+while (stackpage<64) do
+
+if ([MEM_LIST + stackpage]==0) then
+break;
+endif;
+
+stackpage=stackpage+1;
+endwhile;
+
+if (stackpage==64) then
+[physicalSPOfParent - 2]=-1;
+ireturn;
+endif;
+
+
+[MEM_LIST + stackpage]=1;
+
+alias stackparent S4;
+stackparent=[PTBR + 3*2];
+
+alias i S5;
+i=0;
+
+while (i<512) do
+
+[stackpage*512 + i]=[stackparent*512 + i];
+
+i=i+1;
+endwhile;
+
+alias PTBR_CHILD S6;
+PTBR_CHILD=1024 + 8*PIDOFCHILD;
+
+[PTBR_CHILD + 3*2]=stackpage;
+[PTBR_CHILD + 3*2 +1]="01";
+
+alias page S7;
+alias valid S8;
+
+i=0;
+
+while (i<3) do
+page=[PTBR + i*2];
+valid=[PTBR + i*2 + 1];
+[PTBR_CHILD + i*2]=page;
+[PTBR_CHILD + i*2 + 1]=valid;
+
+if (valid=="11"||valid=="01") then
+[MEM_LIST + page]=[MEM_LIST + page]+1;
+endif;
+
+if ((valid=="10"||valid=="00")&&(page>=448)) then
+[DISK_LIST + page]=[DISK_LIST + page] + 1;
+store(6,20);
+endif;
+
+i=i+1;
+endwhile;
+
+
+alias PCBOFCHILD S9;
+PCBOFCHILD=READY_LIST + 32*PIDOFCHILD;
+
+[PCBOFCHILD + 5]=PTBR_CHILD;
+
+alias instruction S10;
+instruction=[physicalSPOfParent];
+[PCBOFCHILD + 4]=instruction;
+
+[PCBOFCHILD + 3]=SP-1;
+
+[PCBOFCHILD + 2]=BP;
+[PCBOFCHILD + 6]=PTLR;
+[PCBOFCHILD + 7]=R0;
+[PCBOFCHILD + 8]=R1;
+[PCBOFCHILD + 9]=R2;
+[PCBOFCHILD + 10]=R3;
+[PCBOFCHILD + 11]=R4;
+[PCBOFCHILD + 12]=R5;
+[PCBOFCHILD + 13]=R6;
+[PCBOFCHILD + 14]=R7;
+
+alias currentPID S11;
+currentPID = (PTBR-1024)/8;
+
+alias currentPCB S12;
+currentPCB = READY_LIST + currentPID*32;
+
+alias indexofsystemfiletable S13;
+
+i=15;
+while (i<30) do
+
+[PCBOFCHILD + i]=[currentPCB + i];
+[PCBOFCHILD + i + 1]=[currentPCB + i + 1];
+
+indexofsystemfiletable=[currentPCB + i];
+
+if (indexofsystemfiletable!=-1) then
+[FILE_TABLE + indexofsystemfiletable*2 + 1]=[FILE_TABLE + indexofsystemfiletable*2 + 1]+1;
+endif;
+
+i=i+2;
+endwhile;
+
+[PCBOFCHILD + 1]=1;
+
+[physicalSPOfParent - 2]=PIDOFCHILD;
+
+alias physicalSPOfChild S13;
+physicalSPOfChild=([PTBR_CHILD + 2* ((SP-1)/512)]*512) + ((SP-1)%512);
+
+[physicalSPOfChild - 1]=-2;
+ireturn;
+
+endif;

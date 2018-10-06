@@ -1,0 +1,81 @@
+alias physicalSP S0;
+physicalSP = ([PTBR + 2*(SP/512)]*512) + (SP%512);
+alias syscallno S1;
+syscallno = [physicalSP-1];
+alias argument2 S2;
+argument2 = [physicalSP-3];
+alias argument1 S3;
+argument1 = [physicalSP-4];
+
+
+               if(syscallno==6) then 
+                             if(argument1 >= 0 && argument1<=7) then
+                                    alias currentPID S4;
+                                             currentPID = (PTBR - 1024)/8;
+                                    if([READY_LIST + 32*currentPID + 15 + argument1*2]==-1) then
+                                           [physicalSP-2]=-1;
+                                             ireturn;
+                                    endif;
+                                    alias sw_index S5;
+                                             sw_index = [READY_LIST + 32*currentPID + 15 + argument1*2];
+                                             sw_index = sw_index*2;
+                                    alias file_size S6;
+                                             file_size = [FAT + 8*[FILE_TABLE + sw_index] +1];
+                                    if(argument2 >= 0 && argument2 <= file_size) then
+                                                 [READY_LIST + 32*currentPID + 15 + argument1*2 + 1] = argument2;
+                                    [physicalSP-2] = 0;
+                                      ireturn;
+                                    endif;
+
+
+                                    [physicalSP-2] = -1;
+                                         ireturn;
+                                    
+                            endif;
+                            [physicalSP-2] = -1;
+                                  ireturn;
+                 endif;
+       
+            if(syscallno==7) then
+                        
+                        if(argument1 >=0 && argument1 <= 7) then 
+                               alias currentPID S4;
+                                     currentPID = (PTBR-1024)/8;
+                                     if([READY_LIST + 32*currentPID + 15 + argument1*2 ]==-1) then
+                                                     [physicalSP-2]=-1;
+
+                                                     ireturn;
+                                      endif;
+
+                                      alias sw_index S5;
+                                    sw_index = [READY_LIST + 32*currentPID + 15 + argument1*2 ];
+                                    sw_index = sw_index*2;
+                                     alias basic_block S6;
+                                      basic_block = [FAT + 8*[FILE_TABLE + sw_index] + 2];
+                                     load (1,basic_block);
+                                     alias lseek S8;
+                                           lseek = [READY_LIST + 32*currentPID + 15 + argument1*2  + 1];
+                                     if(lseek==[FAT + 8*[FILE_TABLE + sw_index] + 1]) then
+                                        [physicalSP-2]=-1;
+                                         ireturn;
+                                     endif;
+                                     
+                                     
+                        alias data_block S7;
+                         data_block = [SCRATCHPAD + (lseek/512) ];
+                        load (1,data_block);
+                         [physicalSP-3]=[SCRATCHPAD + (lseek%512) ];
+[READY_LIST + 32*[FILE_TABLE + sw_index]+15+argument1*2 +1] = [READY_LIST + 32*[FILE_TABLE + sw_index]+15 +argument1*2 +1] + 1;
+                         [physicalSP-2]=0;
+                          ireturn;
+                  
+                      endif;
+             [physicalSP-2]=-1;
+             ireturn;
+     endif;             
+
+
+
+                         
+
+                                

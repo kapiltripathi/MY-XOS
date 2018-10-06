@@ -1,0 +1,63 @@
+alias physicalSP S0;
+physicalSP = ([PTBR + 2*(SP/512)]*512) + (SP % 512);
+alias argument2 S1;
+argument2 = [physicalSP-3];
+alias argument1 S2;
+argument1 = [physicalSP-4];
+
+    if(argument1 >= 0 && argument1 <= 7) then
+      
+                  alias currentPID S3;
+                  currentPID = (PTBR - 1024)/8;
+                  if([READY_LIST + currentPID*32 + 15 +2*argument1 ]==-1) then 
+                         [physicalSP-2]=-1;
+                         ireturn;
+                   endif;
+                  alias sw_index S4;
+                           sw_index = [READY_LIST + currentPID*32 + 15 + 2*argument1 ];
+                           sw_index = sw_index*2;
+                  alias lseek S5;
+                           lseek = [READY_LIST + currentPID*32 + 15 + 2*argument1 +1];
+                  load (1,[FAT + 8*[FILE_TABLE + sw_index] + 2]);
+                  alias data_block S8;
+                  data_block = [SCRATCHPAD + (lseek/512)];
+           
+                       if([SCRATCHPAD + (lseek/512) ]==-1) then
+                                alias count S6;
+                                     count=24;
+                                alias flag S7;
+                                       flag=0;
+                                        while(count<448) do
+                                                  if([DISK_LIST + count]==0) then
+                                                            [DISK_LIST + count ] = 1;
+
+                                                                    flag=1;
+                                                                    break;
+                                                   endif;
+                                        count=count+1;
+                                        endwhile;
+                                         if(flag==0) then
+                                               [physicalSP-2]=-1;
+                                               ireturn;
+                                         endif;
+                                         [SCRATCHPAD + (lseek/512) ] = count;
+                                          data_block = [SCRATCHPAD + (lseek/512) ];
+                                         store (1,[FAT + 8*[FILE_TABLE + sw_index] +2]);
+                        [FAT + 8*[FILE_TABLE + 2*sw_index] + 1] = [FAT + 8*[FILE_TABLE + sw_index] + 1] +512;
+                                         store (5,19);
+                                         store (6,20);
+             
+                        endif;
+                        
+                  load (1,data_block);
+                   [SCRATCHPAD + (lseek%512)]=argument2;
+                  store (1,data_block);
+        [READY_LIST + currentPID*32 + 15 + 2*argument1 +1] = [READY_LIST + currentPID*32 + 15 + 2*argument1 +1] +1;
+
+        [physicalSP-2]=0;
+           ireturn;
+
+    endif;
+  [physicalSP-2]=-1;
+   ireturn;
+

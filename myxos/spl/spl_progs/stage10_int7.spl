@@ -1,0 +1,151 @@
+alias physicalSP S0;
+physicalSP=([PTBR + 2* (SP/512)]*512) + (SP%512);
+
+alias sysCallNo S1;
+sysCallNo=[physicalSP-1];
+
+if (sysCallNo==10) then
+
+alias flag S2;
+flag=0;
+
+alias i S3;
+i=0;
+
+while (i<32) do
+
+if ([READY_LIST + i*32 + 1]==1) then
+flag=1;
+break;
+endif;
+
+i=i+1;
+endwhile;
+
+if(flag==0) then
+halt;
+endif;
+
+
+alias filedescriptor S4;
+filedescriptor=0;
+
+alias currentPID S5;
+currentPID = (PTBR-1024)/8;
+
+alias currentPCB S6;
+currentPCB = READY_LIST + 32*currentPID;
+
+while (filedescriptor < 8) do
+
+if ([currentPCB + 15 + filedescriptor*2]!=-1) then
+
+alias openfiletableindex S7;
+openfiletableindex=[currentPCB + 15 + filedescriptor*2];
+
+
+alias fileopencount S8;
+fileopencount=[FILE_TABLE + openfiletableindex*2 + 1];
+fileopencount=fileopencount-1;
+
+[FILE_TABLE + openfiletableindex*2 + 1]=fileopencount;
+
+if (fileopencount == 0) then
+[FILE_TABLE + openfiletableindex*2]=-1;
+endif;
+
+
+
+[currentPCB + 15 + filedescriptor*2]=-1;
+
+
+endif;
+
+
+filedescriptor=filedescriptor+1;
+endwhile;
+
+[currentPCB + 1]=0;
+
+i=0;
+
+alias page S9;
+alias valid S15;
+
+while (i<3) do
+
+page=[PTBR + i*2];
+valid=[PTBR + i*2 + 1];
+
+if (valid==01||valid==11) then
+[MEM_LIST + page]=[MEM_LIST + page]-1;
+
+if ([MEM_LIST + page]<0) then
+[MEM_LIST + page]=0;
+endif;
+
+endif;
+
+if ((valid==00||valid==10)&&(page>=448)) then
+[DISK_LIST + page]=[DISK_LIST + page]-1;
+
+if ([DISK_LIST + page]<0) then
+[DISK_LIST + page]=0;
+endif;
+
+endif;
+
+[PTBR + i*2]=-1;
+[PTBR + i*2 + 1]="00";
+
+i=i+1;
+endwhile;
+
+
+
+store(6,20);
+
+alias newPID S10;
+newPID=0;
+
+while (newPID < 32) do
+
+if ([READY_LIST + newPID*32 + 1]==1) then
+break;
+endif;
+
+newPID=newPID+1;
+endwhile;
+
+
+
+alias newPCB S11;
+newPCB=READY_LIST + newPID*32;
+
+BP=[newPCB + 2];
+SP=[newPCB + 3];
+
+PTBR=[newPCB + 5];
+PTLR=[newPCB + 6];
+
+R0=[newPCB + 7];
+R1=[newPCB + 8];
+R2=[newPCB + 9];
+R3=[newPCB + 10];
+R4=[newPCB + 11];
+R5=[newPCB + 12];
+R6=[newPCB + 13];
+R7=[newPCB + 14];
+
+
+SP=SP+1;
+alias newphysicalSP S12;
+newphysicalSP = ([PTBR + 2*(SP/512)]*512) +(SP%512);
+[newphysicalSP]=[newPCB + 4];
+[newPCB + 1]=2;
+
+print("after6");
+ireturn;
+
+
+endif;

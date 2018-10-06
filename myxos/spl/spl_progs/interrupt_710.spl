@@ -1,0 +1,102 @@
+ alias physicalSP S0;
+       physicalSP = ([PTBR + (SP/512)*2]*512) + (SP%512) ;
+ //alias waitingPID S1;
+       //waitingPID = [physicalSP-3];
+ alias syscallno S9;
+       syscallno = [physicalSP-1];
+    
+       if(syscallno == 10) then
+     
+       alias i S3;
+             i=0;
+       alias count S2;
+             count=0;
+              while(i<32) do
+                  if([READY_LIST + i*32 + 1]==1) then
+                     count=count+1;
+                  endif;
+              i=i+1;
+              endwhile;
+              if(count==0) then
+               halt;
+              endif;
+       alias pid S4;
+             pid = (PTBR-1024)/8;
+       i=0;
+       while(i<8) do
+             if([READY_LIST + 32*pid + 15 + i*2]!=-1) then
+                alias sysIndex S5;
+                      sysIndex = [READY_LIST + 32*pid + 15 + i*2];
+                [FILE_TABLE + sysIndex*2 + 1] = [FILE_TABLE + sysIndex*2 + 1]-1;
+                if([FILE_TABLE + sysIndex*2 + 1]==0) then
+                [FILE_TABLE + sysIndex*2 + 1] = 0;
+                [FILE_TABLE + sysIndex*2 + 0] = -1;
+                endif;
+                [READY_LIST + 32*pid + 15 + i*2]=-1;
+                [READY_LIST + 32*pid + 15 + i*2 + 1]=-1;
+             endif;
+        i=i+1;
+       endwhile;
+      i=0;
+      while ( i<3) do
+            if( [PTBR + 2*i]!=-1) then
+                 alias pageno S6;
+                       pageno = [PTBR + 2*i];
+                   if([PTBR + 2*i +1 ] == "01" || [PTBR + 2*i +1] == "11") then
+                  
+                     [MEM_LIST + pageno]=[MEM_LIST + pageno] -1;
+                     if ([MEM_LIST + pageno]<0) then
+                          [MEM_LIST + pageno]=0;
+                                     endif;
+                   endif;
+                   if(([PTBR + 2*i + 1] == "00" || [PTBR + 2*i + 1] == "10" ) && (pageno>=448) ) then
+                      [DISK_LIST + pageno] = [DISK_LIST + pageno]-1;
+                      store (6,20);
+                      endif;
+
+                 [PTBR + 2*i]=-1;
+                 [PTBR + 2*i + 1]="00";
+            endif;
+      i=i+1;
+      endwhile;
+      [READY_LIST + 32*pid + 1] = 0;
+    //  alias id S9;
+      //          id=0;
+        //  while(id<32) do
+          //if([READY_LIST + 32*id + 1]==(100+pid))then
+            // [READY_LIST + 32*id + 1]=1;
+          //endif;
+          //id=id+1;
+          //endwhile;
+      alias newPCB S7;  
+      pid=pid+1;
+       newPCB =  READY_LIST + 32* pid;
+      
+      while([READY_LIST + 32*pid + 1]!=1) do
+           pid=(pid+1) % 32;
+           newPCB = READY_LIST + 32*pid;
+           endwhile;
+        BP=[newPCB+2];
+	SP=[newPCB+3];
+	PTBR=[newPCB+5];
+	PTLR=[newPCB+6];
+	R0=[newPCB+7];
+	R1=[newPCB+8];
+	R2=[newPCB+9];
+	R3=[newPCB+10];
+	R4=[newPCB+11];
+	R5=[newPCB+12];
+	R6=[newPCB+13];
+	R7=[newPCB+14];
+           
+
+     SP= SP+1;
+          alias physicalnewSP  S8;
+         physicalnewSP = ([PTBR + 2*(SP/512)] * 512) + ( SP%512);
+         [physicalnewSP]= [newPCB + 4];
+         [newPCB +1] = 2;
+          
+              
+         ireturn;
+  endif;
+ 

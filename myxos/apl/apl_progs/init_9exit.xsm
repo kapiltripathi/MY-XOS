@@ -1,0 +1,19 @@
+START
+MOV SP, 1535
+MOV BP, 1535
+JMP 00008
+PUSH BP
+MOV BP,SP
+MOV R0, "yo po dhus dhai"
+OUT R0
+MOV R0, "kya baat hai"
+OUT R0
+MOV R0, "omnamahshivay"
+OUT R0
+MOV R0, 10
+PUSH R0
+INT 7
+POP R0
+MOV R0, 10
+PUSH R0
+INT 7

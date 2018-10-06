@@ -1,0 +1,126 @@
+alias physicalSP S0;
+physicalSP=([PTBR + 2* (SP/512)]*512) + (SP%512);
+
+alias sysCallNo S1;
+sysCallNo=[physicalSP-1];
+
+if (sysCallNo==9) then
+
+alias filename S2;
+filename = [physicalSP - 3];
+
+alias fatindex S3;
+fatindex=0;
+
+while (fatindex < 64) do
+
+if ([FAT + fatindex*8] == filename) then
+break;
+endif;
+
+fatindex=fatindex+1;
+endwhile;
+
+
+if (fatindex==64) then
+[physicalSP - 2]=-1;
+ireturn;
+endif;
+
+
+alias basicblock S4;
+basicblock=[FAT + fatindex*8 + 2];
+
+
+
+alias i S5;
+i=0;
+
+alias page S6;
+alias valid S7;
+
+while (i<3) do
+
+page=[PTBR + i*2];
+valid=[PTBR + i*2 +1];
+
+if (valid=="01"||valid=="11") then
+[MEM_LIST + page]=[MEM_LIST + page]-1;
+
+if ([MEM_LIST + page]<0) then
+[MEM_LIST + page]=0;
+endif;
+
+endif;
+
+if ((valid=="00"||valid=="10")&&(page>=448)) then
+[DISK_LIST + page]=[DISK_LIST + page]-1;
+store(6,20);
+endif;
+
+i=i+1;
+endwhile;
+
+load(1,basicblock);
+
+i=0;
+
+while (i<3) do
+
+if ([SCRATCHPAD + i]==-1) then
+break;
+endif;
+
+[PTBR + i*2]=[SCRATCHPAD + i];
+[PTBR + i*2 + 1]="00";
+
+i=i+1;
+endwhile;
+
+while (i<3) do
+[PTBR + i*2]=-1;
+[PTBR + i*2 +1]="00";
+
+i=i+1;
+endwhile;
+
+
+alias filedescriptor S2;
+filedescriptor=0;
+
+alias currentPID S3;
+currentPID = (PTBR-1024)/8;
+
+alias currentPCB S4;
+currentPCB=READY_LIST+32*currentPID;
+
+while (filedescriptor < 8) do
+
+if ([currentPCB + 15 + filedescriptor*2]!=-1) then
+
+alias openfiletableindex S5;
+openfiletableindex=[currentPCB + 15 + filedescriptor*2];
+
+
+alias fileopencount S6;
+fileopencount=[FILE_TABLE + openfiletableindex*2 + 1];
+fileopencount=fileopencount-1;
+[FILE_TABLE + openfiletableindex*2 + 1]=fileopencount;
+
+if (fileopencount == 0) then
+[FILE_TABLE + openfiletableindex*2]=-1;
+endif;
+
+[currentPCB + 15 + filedescriptor*2]=-1;
+
+endif;
+
+filedescriptor=filedescriptor+1;
+endwhile;
+
+SP=3*512;
+physicalSP=([PTBR + 2* (SP/512)]*512) + (SP%512);
+[physicalSP]=0;
+ireturn;
+
+endif;

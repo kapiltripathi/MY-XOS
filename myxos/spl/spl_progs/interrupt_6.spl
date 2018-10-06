@@ -1,0 +1,143 @@
+alias physicalSP S0;
+physicalSP = ([PTBR + 2* (SP/512)]*512) + (SP % 512);
+alias filename S1;
+filename = [physicalSP-3];
+alias syscallno  S8;
+      syscallno = [physicalSP-1];
+
+     alias i S2;
+           i=0;
+   if( syscallno == 9) then
+           while(i<64) do
+            if([FAT + i*8 + 0]==filename) then
+                      alias basicBlock S3;
+                          basicBlock = [FAT + i*8 + 2];
+                            load (1,basicBlock);
+                            alias j S4;
+                                  j=0;
+                            alias count S5;
+                                  count=0;
+                                  while( j<3) do
+                                       if([SCRATCHPAD + j]!=-1) then
+                                          count = count+1;
+                                          endif;
+                                       if([SCRATCHPAD + j]==-1) then
+                                          break;
+                                        endif;
+                                      j=j+1;
+                                  endwhile;
+                                 j=0;
+                     // alias codeBlocks S9;
+                            //codeBlocks = count;
+                      alias count1 S6;
+                             count1=0;
+                                 while(j<=2) do
+                                 if([PTBR + j*2 ]!=-1) then
+                                        count1 = count1+1;
+                                 endif;
+                                j=j+1;
+                                 endwhile;
+                             alias diff S7;
+                              diff = count-count1;
+                     
+                     if(count1>count) then
+                        
+                              j=0;
+                              while((count+j)<count1) do
+                                    [MEM_LIST + [PTBR + 2 * (count + j)]] = 0;
+                                             [PTBR + 2 * (count + j )] = -1;
+                                             [PTBR + 2 * (count + j) + 1] = "00";
+                                    j=j+1;
+                                    endwhile;
+                     endif;
+
+                                if(count>count1) then
+                                j=29;
+                               alias freecount S11;
+                                freecount=0;
+                               while (j<64) do
+                                if([MEM_LIST + j]==0) then
+                                    freecount=freecount+1;
+                                endif;
+                                j=j+1;
+                               endwhile;
+                                 if(freecount<diff) then
+                                     [physicalSP-2]=-1;
+                                     ireturn;
+                                 endif;
+                                  j=0;
+                                  while((count1+j)<count) do
+                                        freecount=29;
+                                        while(freecount<64) do
+                                              if([MEM_LIST + freecount]== 0) then
+                                                 [MEM_LIST + freecount] = 1;
+                                                 break;
+                                              endif;
+                                         freecount=freecount+1;
+                                        endwhile; 
+                                      [PTBR + 2*(count1+j)]=freecount;
+                                      [PTBR + 2*(count1 + j) + 1]= "01";
+                                   j=j+1;
+                                  endwhile;
+                                                              
+                    endif;
+                 
+                   j=0;
+                 while(j<count) do
+                       load ([PTBR + j*2],[SCRATCHPAD + j]);
+                             j=j+1;
+                 endwhile;
+                 
+                 alias newPID S13;
+                       newPID = (PTBR - 1024)/8;
+                       newPID = newPID*32;
+                       j=0;
+                       while( j<8) do
+                            if([READY_LIST + newPID + 15 + 2*j]!=-1) then 
+                               alias sysIndex S10;
+                                     sysIndex = [READY_LIST + newPID + 15 + 2*j];
+                                   
+                                       [FILE_TABLE + sysIndex*2 + 1] = [FILE_TABLE + sysIndex*2 + 1] - 1;
+                                     if( [FILE_TABLE + sysIndex*2 + 1]==0) then
+                                       [FILE_TABLE + sysIndex*2 + 1] = 0;
+                                       [FILE_TABLE + sysIndex*2 + 0] =-1; 
+                                    endif;
+                               [READY_LIST + newPID + 15 + 2*j]=-1;
+                               [READY_LIST + newPID + 15 + 2*j + 1]=-1;
+                               
+                          endif;
+                        j=j+1;
+                       endwhile;        
+                   SP = 3*512;
+                   physicalSP = ([PTBR + (SP/512)*2]*512) + (SP % 512);
+                   [physicalSP]=0;
+                 ireturn;
+              
+            endif;
+          i=i+1;
+         endwhile;
+        [physicalSP-2]=-1;
+        ireturn;
+   endif;
+   
+
+   if( syscallno == 11) then
+               i=(PTBR-1024)/8;
+               [physicalSP-2]=i;
+               ireturn;
+   endif;
+  
+   if( syscallno == 12) then
+              i = (PTBR-1024)/8;
+              [physicalSP-2] = [READY_LIST + 32*i +31];
+              ireturn;
+   endif;
+
+                                    
+                       
+          
+                               
+               
+                       
+                                 
+                              
